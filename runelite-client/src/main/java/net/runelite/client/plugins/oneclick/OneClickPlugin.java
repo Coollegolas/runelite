@@ -68,6 +68,8 @@ public class OneClickPlugin extends Plugin
 		"<col=ffff>Willow birdhouse (empty)", "<col=ffff>Teak birdhouse (empty)", "<col=ffff>Maple birdhouse (empty)", "<col=ffff>Mahogany birdhouse (empty)",
 		"<col=ffff>Yew birdhouse (empty)", "<col=ffff>Magic birdhouse (empty)", "<col=ffff>Redwood birdhouse (empty)"
 	);
+	private static final Set<Integer> HERBLORE_INGREDIENTS = ImmutableSet.of(ItemID.ANTIDOTE4_5952
+	);
 	private static final String MAGIC_IMBUE_EXPIRED_MESSAGE = "Your Magic Imbue charge has ended.";
 	private static final String MAGIC_IMBUE_MESSAGE = "You are charged to combine runes!";
 
@@ -87,6 +89,7 @@ public class OneClickPlugin extends Plugin
 	private Types type = Types.NONE;
 	private boolean imbue;
 	private boolean enableImbue;
+	private int antidoteSlot = 0;
 
 	@Provides
 	OneClickConfig provideConfig(ConfigManager configManager)
@@ -169,6 +172,7 @@ public class OneClickPlugin extends Plugin
 
 	private void onGameTick(GameTick event)
 	{
+		antidoteSlot = ++antidoteSlot % 28;
 		if (cannon != null)
 		{
 			final Entity entity = cannon.getEntity();
@@ -277,6 +281,15 @@ public class OneClickPlugin extends Plugin
 				return;
 			}
 			entry.setTarget("<col=ff9040>Tinderbox<col=ffffff> -> " + targetMap.get(id));
+			event.setWasModified(true);
+		}
+		else if (type == Types.HERBLORE && opcode == MenuOpcode.ITEM_USE.getId() && id == ItemID.ZULRAHS_SCALES)
+		{
+			if (findItem(ItemID.ANTIDOTE4_5952) == -1)
+			{
+				return;
+			}
+			entry.setTarget("<col=ff9040>Zulrah's Scales<col=ffffff> -> <col=ff9040>Antidote++(4)");
 			event.setWasModified(true);
 		}
 		else if (type == Types.DARK_ESSENCE && opcode == MenuOpcode.ITEM_USE.getId() && id == ItemID.CHISEL)
@@ -395,8 +408,21 @@ public class OneClickPlugin extends Plugin
 			client.setSelectedItemSlot(findItem(ItemID.TINDERBOX));
 			client.setSelectedItemID(ItemID.TINDERBOX);
 		}
+		else if (type == Types.HERBLORE && opcode == MenuOpcode.ITEM_USE.getId() &&
+				target.contains("<col=ff9040>Zulrah's Scales<col=ffffff> ->"))
+		{
+			int potions = findAntidote();
+			if (potions != -1)
+			{
+				entry.setOpcode(MenuOpcode.ITEM_USE_ON_WIDGET_ITEM.getId());
+				client.setSelectedItemWidget(WidgetInfo.INVENTORY.getId());
+				client.setSelectedItemID(ItemID.ANTIDOTE4_5952);
+				client.setSelectedItemSlot(potions);
+			}
+			tick = true;
+		}
 		else if (type == Types.DARK_ESSENCE && opcode == MenuOpcode.ITEM_USE.getId() &&
-			target.contains("<col=ff9040>Chisel<col=ffffff> ->"))
+				target.contains("<col=ff9040>Chisel<col=ffffff> ->"))
 		{
 			if (findItem(ItemID.DARK_ESSENCE_BLOCK) != -1)
 			{
@@ -494,6 +520,27 @@ public class OneClickPlugin extends Plugin
 			client.setSelectedItemID(ItemID.RAW_KARAMBWAN);
 			tick = true;
 		}
+	}
+
+	private int findAntidote()
+	{
+		final ItemContainer itemContainer = client.getItemContainer(InventoryID.INVENTORY);
+
+		if (itemContainer == null)
+		{
+			return -1;
+		}
+
+		final Item[] items = itemContainer.getItems();
+		for (int slot = antidoteSlot; slot < (28 + antidoteSlot); slot++)
+		{
+			final Item item = items[slot % 28];
+			if (item != null && ItemID.ANTIDOTE4_5952 == item.getId())
+			{
+				return slot;
+			}
+		}
+		return -1;
 	}
 
 	private int findItem(int itemID)

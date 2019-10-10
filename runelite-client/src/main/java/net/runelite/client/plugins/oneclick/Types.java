@@ -11,6 +11,7 @@ public enum Types
 	FIREMAKING("Firemaking"),
 	BIRDHOUSES("Birdhouses"),
 	HERB_TAR("Herb Tar"),
+	HERBLORE("Herblore"),
 	LAVA_RUNES("Lava Runes"),
 	HIGH_ALCH("High Alch"),
 	DWARF_CANNON("Dwarf Cannon"),
