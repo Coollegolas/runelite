@@ -4,9 +4,10 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
+import java.awt.Rectangle;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
@@ -27,8 +28,8 @@ import net.runelite.client.ui.overlay.OverlayUtil;
 public class InfernoOverlay extends Overlay
 {
 	private static final int TICK_PIXEL_SIZE = 60;
-	private static final int BLOB_WIDTH = 10;
-	private static final int BLOB_HEIGHT = 5;
+	private static final int BOX_WIDTH = 10;
+	private static final int BOX_HEIGHT = 5;
 
 	private final InfernoPlugin plugin;
 	private final Client client;
@@ -293,7 +294,7 @@ public class InfernoOverlay extends Overlay
 		{
 			final int safeSpotId = plugin.getSafeSpotMap().get(worldPoint);
 
-			if (safeSpotId > 3)
+			if (safeSpotId > 6)
 			{
 				continue;
 			}
@@ -312,7 +313,6 @@ public class InfernoOverlay extends Overlay
 				continue;
 			}
 
-			// TODO: Config values
 			Color color;
 			switch (safeSpotId)
 			{
@@ -327,6 +327,15 @@ public class InfernoOverlay extends Overlay
 					break;
 				case 3:
 					color = Color.BLUE;
+					break;
+				case 4:
+					color = new Color(255, 255, 0);
+					break;
+				case 5:
+					color = new Color(255, 0, 255);
+					break;
+				case 6:
+					color = new Color(0, 255, 255);
 					break;
 				default:
 					continue;
@@ -366,17 +375,16 @@ public class InfernoOverlay extends Overlay
 	{
 		for (Integer tick : plugin.getUpcomingAttacks().keySet())
 		{
-			final HashMap<InfernoNPC.Attack, Integer> attackPriority = plugin.getUpcomingAttacks().get(tick);
+			final Map<InfernoNPC.Attack, Integer> attackPriority = plugin.getUpcomingAttacks().get(tick);
 			int bestPriority = 999;
 			InfernoNPC.Attack bestAttack = null;
 
-			for (InfernoNPC.Attack currentAttack : attackPriority.keySet())
+			for (Map.Entry<InfernoNPC.Attack, Integer> attackEntry : attackPriority.entrySet())
 			{
-				final int currentPriority = attackPriority.get(currentAttack);
-				if (currentPriority < bestPriority)
+				if (attackEntry.getValue() < bestPriority)
 				{
-					bestAttack = currentAttack;
-					bestPriority = currentPriority;
+					bestAttack = attackEntry.getKey();
+					bestPriority = attackEntry.getValue();
 				}
 			}
 
@@ -388,21 +396,21 @@ public class InfernoOverlay extends Overlay
 
 				int baseX = (int) prayerWidget.getBounds().getX();
 				baseX += prayerWidget.getBounds().getWidth() / 2;
-				baseX -= BLOB_WIDTH / 2;
+				baseX -= BOX_WIDTH / 2;
 
-				int baseY = (int) prayerWidget.getBounds().getY() - tick * TICK_PIXEL_SIZE - BLOB_HEIGHT;
+				int baseY = (int) prayerWidget.getBounds().getY() - tick * TICK_PIXEL_SIZE - BOX_HEIGHT;
 				baseY += TICK_PIXEL_SIZE - ((plugin.getLastTick() + 600 - System.currentTimeMillis()) / 600.0 * TICK_PIXEL_SIZE);
 
-				final Polygon blob = new Polygon(new int[]{0, BLOB_WIDTH, BLOB_WIDTH, 0}, new int[]{0, 0, BLOB_HEIGHT, BLOB_HEIGHT}, 4);
-				blob.translate(baseX, baseY);
+				final Rectangle boxRectangle = new Rectangle(BOX_WIDTH, BOX_HEIGHT);
+				boxRectangle.translate(baseX, baseY);
 
 				if (currentAttack == bestAttack)
 				{
-					OverlayUtil.renderFilledPolygon(graphics, blob, color);
+					OverlayUtil.renderFilledPolygon(graphics, boxRectangle, color);
 				}
 				else if (plugin.isIndicateNonPriorityDescendingBoxes())
 				{
-					OverlayUtil.renderOutlinePolygon(graphics, blob, color);
+					OverlayUtil.renderOutlinePolygon(graphics, boxRectangle, color);
 				}
 			}
 		}
@@ -430,11 +438,9 @@ public class InfernoOverlay extends Overlay
 			if (plugin.getClosestAttack() != prayerForAttack || plugin.isIndicateWhenPrayingCorrectly())
 			{
 				final Widget prayerWidget = client.getWidget(plugin.getClosestAttack().getPrayer().getWidgetInfo());
-				final Polygon prayer = new Polygon(
-					new int[]{0, (int) prayerWidget.getBounds().getWidth(), (int) prayerWidget.getBounds().getWidth(), 0},
-					new int[]{0, 0, (int) prayerWidget.getBounds().getHeight(), (int) prayerWidget.getBounds().getHeight()},
-					4);
-				prayer.translate((int) prayerWidget.getBounds().getX(), (int) prayerWidget.getBounds().getY());
+				final Rectangle prayerRectangle = new Rectangle((int) prayerWidget.getBounds().getWidth(),
+					(int) prayerWidget.getBounds().getHeight());
+				prayerRectangle.translate((int) prayerWidget.getBounds().getX(), (int) prayerWidget.getBounds().getY());
 
 				//TODO: Config values for these colors
 				Color prayerColor;
@@ -447,20 +453,15 @@ public class InfernoOverlay extends Overlay
 					prayerColor = Color.RED;
 				}
 
-				OverlayUtil.renderOutlinePolygon(graphics, prayer, prayerColor);
+				OverlayUtil.renderOutlinePolygon(graphics, prayerRectangle, prayerColor);
 			}
 		}
 	}
 
 	private boolean edgeEqualsEdge(int[][] edge1, int[][] edge2, int toleranceSquared)
 	{
-		if ((pointEqualsPoint(edge1[0], edge2[0], toleranceSquared) && pointEqualsPoint(edge1[1], edge2[1], toleranceSquared))
-			|| (pointEqualsPoint(edge1[0], edge2[1], toleranceSquared) && pointEqualsPoint(edge1[1], edge2[0], toleranceSquared)))
-		{
-			return true;
-		}
-
-		return false;
+		return (pointEqualsPoint(edge1[0], edge2[0], toleranceSquared) && pointEqualsPoint(edge1[1], edge2[1], toleranceSquared))
+			|| (pointEqualsPoint(edge1[0], edge2[1], toleranceSquared) && pointEqualsPoint(edge1[1], edge2[0], toleranceSquared));
 	}
 
 	private boolean pointEqualsPoint(int[] point1, int[] point2, int toleranceSquared)

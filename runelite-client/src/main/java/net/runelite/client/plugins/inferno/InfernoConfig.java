@@ -32,9 +32,10 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
+import net.runelite.client.plugins.inferno.displaymodes.InfernoNamingDisplayMode;
 import net.runelite.client.plugins.inferno.displaymodes.InfernoPrayerDisplayMode;
-import net.runelite.client.plugins.inferno.displaymodes.InfernoWaveDisplayMode;
 import net.runelite.client.plugins.inferno.displaymodes.InfernoSafespotDisplayMode;
+import net.runelite.client.plugins.inferno.displaymodes.InfernoWaveDisplayMode;
 import net.runelite.client.plugins.inferno.displaymodes.InfernoZukShieldDisplayMode;
 
 @ConfigGroup("inferno")
@@ -47,7 +48,7 @@ public interface InfernoConfig extends Config
 		position = 0,
 		keyName = "PrayerSection"
 	)
-	default boolean PrayerSection()
+	default boolean prayerSection()
 	{
 		return false;
 	}
@@ -58,7 +59,7 @@ public interface InfernoConfig extends Config
 		position = 1,
 		keyName = "SafespotsSection"
 	)
-	default boolean SafespotsSection()
+	default boolean safespotsSection()
 	{
 		return false;
 	}
@@ -69,7 +70,7 @@ public interface InfernoConfig extends Config
 		position = 2,
 		keyName = "WavesSection"
 	)
-	default boolean WavesSection()
+	default boolean wavesSection()
 	{
 		return false;
 	}
@@ -80,7 +81,7 @@ public interface InfernoConfig extends Config
 		position = 3,
 		keyName = "ExtraSection"
 	)
-	default boolean ExtraSection()
+	default boolean extraSection()
 	{
 		return false;
 	}
@@ -91,7 +92,7 @@ public interface InfernoConfig extends Config
 		position = 4,
 		keyName = "NibblersSection"
 	)
-	default boolean NibblersSection()
+	default boolean nibblersSection()
 	{
 		return false;
 	}
@@ -102,7 +103,7 @@ public interface InfernoConfig extends Config
 		position = 5,
 		keyName = "BatsSection"
 	)
-	default boolean BatsSection()
+	default boolean batsSection()
 	{
 		return false;
 	}
@@ -113,7 +114,7 @@ public interface InfernoConfig extends Config
 		position = 6,
 		keyName = "BlobsSection"
 	)
-	default boolean BlobsSection()
+	default boolean blobsSection()
 	{
 		return false;
 	}
@@ -124,7 +125,7 @@ public interface InfernoConfig extends Config
 		position = 7,
 		keyName = "MeleersSection"
 	)
-	default boolean MeleersSection()
+	default boolean meleersSection()
 	{
 		return false;
 	}
@@ -135,7 +136,7 @@ public interface InfernoConfig extends Config
 		position = 8,
 		keyName = "RangersSection"
 	)
-	default boolean RangersSection()
+	default boolean rangersSection()
 	{
 		return false;
 	}
@@ -146,7 +147,7 @@ public interface InfernoConfig extends Config
 		position = 9,
 		keyName = "MagersSection"
 	)
-	default boolean MagersSection()
+	default boolean magersSection()
 	{
 		return false;
 	}
@@ -157,7 +158,7 @@ public interface InfernoConfig extends Config
 		position = 10,
 		keyName = "JadSection"
 	)
-	default boolean JadSection()
+	default boolean jadSection()
 	{
 		return false;
 	}
@@ -168,7 +169,7 @@ public interface InfernoConfig extends Config
 		position = 11,
 		keyName = "JadHealersSection"
 	)
-	default boolean JadHealersSection()
+	default boolean jadHealersSection()
 	{
 		return false;
 	}
@@ -179,7 +180,7 @@ public interface InfernoConfig extends Config
 		position = 12,
 		keyName = "ZukSection"
 	)
-	default boolean ZukSection()
+	default boolean zukSection()
 	{
 		return false;
 	}
@@ -190,7 +191,7 @@ public interface InfernoConfig extends Config
 		position = 13,
 		keyName = "ZukHealersSection"
 	)
-	default boolean ZukHealersSection()
+	default boolean zukHealersSection()
 	{
 		return false;
 	}
@@ -307,7 +308,7 @@ public interface InfernoConfig extends Config
 	@ConfigItem(
 		position = 0,
 		keyName = "waveDisplay",
-		name = "Wave display",
+		name = "Wave Display",
 		description = "Shows monsters that will spawn on the selected wave(s).",
 		section = "WavesSection"
 	)
@@ -318,6 +319,30 @@ public interface InfernoConfig extends Config
 
 	@ConfigItem(
 		position = 1,
+		keyName = "npcNaming",
+		name = "NPC Naming",
+		description = "Simple (ex: Bat) or Complex (ex: Jal-MejRah) NPC naming",
+		section = "WavesSection"
+	)
+	default InfernoNamingDisplayMode npcNaming()
+	{
+		return InfernoNamingDisplayMode.SIMPLE;
+	}
+
+	@ConfigItem(
+		position = 2,
+		keyName = "npcLevels",
+		name = "NPC Levels",
+		description = "Show the combat level of the NPC next to their name",
+		section = "WavesSection"
+	)
+	default boolean npcLevels()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		position = 3,
 		keyName = "getWaveOverlayHeaderColor",
 		name = "Wave Header",
 		description = "Color for Wave Header",
@@ -329,7 +354,7 @@ public interface InfernoConfig extends Config
 	}
 
 	@ConfigItem(
-		position = 2,
+		position = 4,
 		keyName = "getWaveTextColor",
 		name = "Wave Text Color",
 		description = "Color for Wave Texts",
@@ -777,7 +802,7 @@ public interface InfernoConfig extends Config
 
 	@ConfigItem(
 		position = 3,
-		keyName = "indicateActiveHealers",
+		keyName = "indicateActiveHealersJad",
 		name = "Indicate Active Healers",
 		description = "Indicate healers that are still healing Jad",
 		section = "JadHealersSection"
@@ -849,7 +874,7 @@ public interface InfernoConfig extends Config
 
 	@ConfigItem(
 		position = 0,
-		keyName = "indicateActiveHealers",
+		keyName = "indicateActiveHealersZuk",
 		name = "Indicate Active Healers (UNTESTED)",
 		description = "Indicate healers that are still healing Zuk",
 		section = "ZukHealersSection"

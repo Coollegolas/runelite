@@ -28,6 +28,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.AccessLevel;
 import lombok.Getter;
 import net.runelite.api.AnimationID;
@@ -49,10 +50,10 @@ public class InfernoNPC
 	private Attack nextAttack;
 	@Getter(AccessLevel.PACKAGE)
 	private int ticksTillNextAttack;
-	private int lastAnimation = -1;
+	private int lastAnimation;
 	private boolean lastCanAttack;
 	//0 = not in LOS, 1 = in LOS after move, 2 = in LOS
-	private HashMap<WorldPoint, Integer> safeSpotCache;
+	private final Map<WorldPoint, Integer> safeSpotCache;
 
 	InfernoNPC(NPC npc)
 	{
@@ -71,7 +72,7 @@ public class InfernoNPC
 		this.ticksTillNextAttack = ticksTillNextAttack;
 	}
 
-	void updateNextAttack(Attack nextAttack)
+	private void updateNextAttack(Attack nextAttack)
 	{
 		this.nextAttack = nextAttack;
 	}
@@ -165,106 +166,7 @@ public class InfernoNPC
 		}
 	}
 
-	boolean canMoveToAttack2(Client client, WorldPoint target, List<WorldPoint> obstacles)
-	{
-		//System.out.println("");
-		//System.out.println("CHECKING TARGET: " + target.getX() + ", " + target.getY());
-
-		if (safeSpotCache.containsKey(target))
-		{
-			//System.out.println("Already in cache, can walk to: " + String.valueOf(safeSpotCache.get(target) == 1));
-			return safeSpotCache.get(target) == 1;
-		}
-
-		final List<WorldPoint> realObstacles = new ArrayList<>();
-		for (WorldPoint obstacle : obstacles)
-		{
-			if (this.getNpc().getWorldArea().toWorldPointList().contains(obstacle))
-			{
-				continue;
-			}
-
-			realObstacles.add(obstacle);
-		}
-
-		WorldPoint currentPosition = this.getNpc().getWorldLocation();
-
-		int steps = 0;
-		while (true)
-		{
-			// Prevent infinite loop in case of pathfinding failure
-			steps++;
-			if (steps > 30)
-			{
-				return false;
-			}
-
-			//System.out.println("Step " + steps + ": ");
-
-			final int dx = Integer.signum(target.getX() - currentPosition.getX());
-			final int dy = Integer.signum(target.getY() - currentPosition.getY());
-
-			final List<WorldPoint> possibleNextLocations = new ArrayList<>();
-			possibleNextLocations.add(currentPosition.dx(dx).dy(dy));
-			possibleNextLocations.add(currentPosition.dx(dx));
-
-			if (Math.abs(target.getX() - currentPosition.getX()) != Math.abs(target.getY() - currentPosition.getY())
-				|| new WorldArea(currentPosition, npc.getTransformedDefinition().getSize(), npc.getTransformedDefinition().getSize()).distanceTo(target) != 1)
-			{
-				possibleNextLocations.add(currentPosition.dy(dy));
-			}
-
-			WorldPoint bestNextLocation = null;
-			WorldArea bestNexArea = null;
-			for (WorldPoint possibleNextLocation : possibleNextLocations)
-			{
-				//System.out.println("Checking loc: " + possibleNextLocation.getX() + ", " + possibleNextLocation.getY());
-				if (possibleNextLocation.getX() == currentPosition.getX() && possibleNextLocation.getY() == currentPosition.getY())
-				{
-					//System.out.println("Position is the same, continuing");
-					continue;
-				}
-
-				final WorldArea possibleNextArea = new WorldArea(possibleNextLocation, npc.getTransformedDefinition().getSize(),
-					npc.getTransformedDefinition().getSize());
-
-				boolean stillPossible = true;
-				for (WorldPoint obstacle : realObstacles)
-				{
-					if (possibleNextArea.intersectsWith(new WorldArea(obstacle, 1, 1)))
-					{
-						//System.out.println("Intersected with obstacle, discarding position");
-						stillPossible = false;
-						break;
-					}
-				}
-				if (stillPossible)
-				{
-					bestNextLocation = possibleNextLocation;
-					bestNexArea = possibleNextArea;
-					break;
-				}
-			}
-
-			if (bestNextLocation != null && bestNexArea != null)
-			{
-				boolean hasLos = new WorldArea(target, 1, 1).hasLineOfSightTo(client, bestNexArea);
-				boolean hasRange = this.getType().getDefaultAttack() == Attack.MELEE ? bestNexArea.isInMeleeDistance(target)
-					: bestNexArea.distanceTo(target) <= this.getType().getRange();
-
-				if (hasLos && hasRange)
-				{
-					//System.out.println("Move location has LOS, can walk to: true");
-					safeSpotCache.put(bestNextLocation, 1);
-					return true;
-				}
-
-				currentPosition = bestNextLocation;
-			}
-		}
-	}
-
-	boolean couldAttackPrevTick(Client client, WorldPoint lastPlayerLocation)
+	private boolean couldAttackPrevTick(Client client, WorldPoint lastPlayerLocation)
 	{
 		return new WorldArea(lastPlayerLocation, 1, 1).hasLineOfSightTo(client, this.getNpc().getWorldArea());
 	}
@@ -281,7 +183,7 @@ public class InfernoNPC
 		//Jad animation detection
 		if (this.getType() == Type.JAD && this.getNpc().getAnimation() != -1 && this.getNpc().getAnimation() != this.lastAnimation)
 		{
-			final Attack currentAttack = Attack.attackFromId(this.getNpc().getAnimation());
+			final InfernoNPC.Attack currentAttack = InfernoNPC.Attack.attackFromId(this.getNpc().getAnimation());
 
 			if (currentAttack != null && currentAttack != Attack.UNKNOWN)
 			{
@@ -291,80 +193,82 @@ public class InfernoNPC
 
 		if (ticksTillNextAttack <= 0)
 		{
-			if (this.getType() == Type.ZUK)
+			switch (this.getType())
 			{
-				if (this.getNpc().getAnimation() == AnimationID.TZKAL_ZUK)
-				{
-					if (finalPhase)
+				case ZUK:
+					if (this.getNpc().getAnimation() == AnimationID.TZKAL_ZUK)
 					{
-						this.updateNextAttack(this.getType().getDefaultAttack(), 7);
+						if (finalPhase)
+						{
+							this.updateNextAttack(this.getType().getDefaultAttack(), 7);
+						}
+						else
+						{
+							this.updateNextAttack(this.getType().getDefaultAttack(), 10);
+						}
 					}
-					else
+					break;
+				case JAD:
+					if (this.getNextAttack() != Attack.UNKNOWN)
 					{
-						this.updateNextAttack(this.getType().getDefaultAttack(), 10);
+						// Jad's cycle continuous after his animation + attack but there's no animation to alert it
+						this.updateNextAttack(this.getType().getDefaultAttack(), 8);
 					}
-				}
-			}
-			else if (this.getType() == Type.JAD)
-			{
-				if (this.getNextAttack() != Attack.UNKNOWN)
-				{
-					// Jad's cycle continuous after his animation + attack but there's no animation to alert it
-					this.updateNextAttack(this.getType().getDefaultAttack(), 8);
-				}
-			}
-			else if (this.getType() == Type.BLOB)
-			{
-				//RS pathfinding + LOS = hell, so if it can attack you the tick you were on previously, start attack cycle
-				if (!this.lastCanAttack && this.couldAttackPrevTick(client, lastPlayerLocation))
-				{
-					this.updateNextAttack(Attack.UNKNOWN, 3);
-				}
-				//If there's no animation when coming out of the safespot, the blob is detecting prayer
-				else if (!this.lastCanAttack && this.canAttack(client, client.getLocalPlayer().getWorldLocation()))
-				{
-					this.updateNextAttack(Attack.UNKNOWN, 4);
-				}
-				//This will activate another attack cycle
-				else if (this.getNpc().getAnimation() != -1)
-				{
-					this.updateNextAttack(this.getType().getDefaultAttack(), this.getType().getTicksAfterAnimation());
-				}
-			}
-			// Range + LOS check for bat because it suffers from the defense animation bug, also dont activate on "stand" animation
-			else if (this.getType() == Type.BAT)
-			{
-				if (this.canAttack(client, client.getLocalPlayer().getWorldLocation()) && this.getNpc().getAnimation() != 7577
-					&& this.getNpc().getAnimation() != -1)
-				{
-					this.updateNextAttack(this.getType().getDefaultAttack(), this.getType().getTicksAfterAnimation());
-				}
-			}
-			// For the meleer, ranger and mage the attack animation is always prioritized so only check for those
-			else if (this.getType() == Type.MELEE || this.getType() == Type.RANGER || this.getType() == Type.MAGE)
-			{
-				// Normal attack animation, doesnt suffer from defense animation bug. Activate usual attack cycle
-				if (this.getNpc().getAnimation() == AnimationID.JAL_IMKOT
-					|| this.getNpc().getAnimation() == AnimationID.JAL_XIL_RANGE_ATTACK || this.getNpc().getAnimation() == AnimationID.JAL_XIL_MELEE_ATTACK
-					|| this.getNpc().getAnimation() == AnimationID.JAL_ZEK_MAGE_ATTACK || this.getNpc().getAnimation() == AnimationID.JAL_ZEK_MELEE_ATTACK)
-				{
-					this.updateNextAttack(this.getType().getDefaultAttack(), this.getType().getTicksAfterAnimation());
-				}
-				// Burrow into ground animation for meleer
-				else if (this.getNpc().getAnimation() == 7600)
-				{
-					this.updateNextAttack(this.getType().getDefaultAttack(), 12);
-				}
-				// Respawn enemy animation for mage
-				else if (this.getNpc().getAnimation() == 7611)
-				{
-					this.updateNextAttack(this.getType().getDefaultAttack(), 8);
-				}
-			}
-			else if (this.getNpc().getAnimation() != -1)
-			{
-				// This will activate another attack cycle
-				this.updateNextAttack(this.getType().getDefaultAttack(), this.getType().getTicksAfterAnimation());
+					break;
+				case BLOB:
+					//RS pathfinding + LOS = hell, so if it can attack you the tick you were on previously, start attack cycle
+					if (!this.lastCanAttack && this.couldAttackPrevTick(client, lastPlayerLocation))
+					{
+						this.updateNextAttack(Attack.UNKNOWN, 3);
+					}
+					//If there's no animation when coming out of the safespot, the blob is detecting prayer
+					else if (!this.lastCanAttack && this.canAttack(client, client.getLocalPlayer().getWorldLocation()))
+					{
+						this.updateNextAttack(Attack.UNKNOWN, 4);
+					}
+					//This will activate another attack cycle
+					else if (this.getNpc().getAnimation() != -1)
+					{
+						this.updateNextAttack(this.getType().getDefaultAttack(), this.getType().getTicksAfterAnimation());
+					}
+					break;
+				case BAT:
+					// Range + LOS check for bat because it suffers from the defense animation bug, also dont activate on "stand" animation
+					if (this.canAttack(client, client.getLocalPlayer().getWorldLocation())
+						&& this.getNpc().getAnimation() != AnimationID.JAL_MEJRAH_STAND	&& this.getNpc().getAnimation() != -1)
+					{
+						this.updateNextAttack(this.getType().getDefaultAttack(), this.getType().getTicksAfterAnimation());
+					}
+					break;
+				case MELEE:
+				case RANGER:
+				case MAGE:
+					// For the meleer, ranger and mage the attack animation is always prioritized so only check for those
+					// Normal attack animation, doesnt suffer from defense animation bug. Activate usual attack cycle
+					if (this.getNpc().getAnimation() == AnimationID.JAL_IMKOT
+						|| this.getNpc().getAnimation() == AnimationID.JAL_XIL_RANGE_ATTACK || this.getNpc().getAnimation() == AnimationID.JAL_XIL_MELEE_ATTACK
+						|| this.getNpc().getAnimation() == AnimationID.JAL_ZEK_MAGE_ATTACK || this.getNpc().getAnimation() == AnimationID.JAL_ZEK_MELEE_ATTACK)
+					{
+						this.updateNextAttack(this.getType().getDefaultAttack(), this.getType().getTicksAfterAnimation());
+					}
+					// Burrow into ground animation for meleer
+					else if (this.getNpc().getAnimation() == 7600)
+					{
+						this.updateNextAttack(this.getType().getDefaultAttack(), 12);
+					}
+					// Respawn enemy animation for mage
+					else if (this.getNpc().getAnimation() == 7611)
+					{
+						this.updateNextAttack(this.getType().getDefaultAttack(), 8);
+					}
+					break;
+				default:
+					if (this.getNpc().getAnimation() != -1)
+					{
+						// This will activate another attack cycle
+						this.updateNextAttack(this.getType().getDefaultAttack(), this.getType().getTicksAfterAnimation());
+					}
+					break;
 			}
 		}
 
@@ -372,22 +276,22 @@ public class InfernoNPC
 		if (this.getType() == Type.BLOB && this.getTicksTillNextAttack() == 3
 			&& client.getLocalPlayer().getWorldLocation().distanceTo(this.getNpc().getWorldArea()) <= Type.BLOB.getRange())
 		{
-			Attack nextBlobAttack = Attack.UNKNOWN;
+			InfernoNPC.Attack nextBlobAttack = InfernoNPC.Attack.UNKNOWN;
 			if (client.isPrayerActive(Prayer.PROTECT_FROM_MISSILES))
 			{
-				nextBlobAttack = Attack.MAGIC;
+				nextBlobAttack = InfernoNPC.Attack.MAGIC;
 			}
 			else if (client.isPrayerActive(Prayer.PROTECT_FROM_MAGIC))
 			{
-				nextBlobAttack = Attack.RANGED;
+				nextBlobAttack = InfernoNPC.Attack.RANGED;
 			}
 
 			this.updateNextAttack(nextBlobAttack);
 		}
 
-		// - This is for jad (jad's animation lasts till after the attack is launched, which fucks up the attack cycle)
+		// This is for jad (jad's animation lasts till after the attack is launched, which fucks up the attack cycle)
 		lastAnimation = this.getNpc().getAnimation();
-		// - This is for blob (to check if player just came out of safespot)
+		// This is for blob (to check if player just came out of safespot)
 		lastCanAttack = this.canAttack(client, client.getLocalPlayer().getWorldLocation());
 	}
 
@@ -428,7 +332,7 @@ public class InfernoNPC
 		private final Color criticalColor;
 		private final int[] animationIds;
 
-		Attack(Prayer prayer, Color normalColor, Color criticalColor, int animationIds[])
+		Attack(Prayer prayer, Color normalColor, Color criticalColor, int[] animationIds)
 		{
 			this.prayer = prayer;
 			this.normalColor = normalColor;
